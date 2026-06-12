@@ -3,6 +3,7 @@
  * ESP8266 Wemos D1 mini with SSD1306 Display and 4 LEDs
  * 
  * Acts as WiFi Access Point and displays data from all 4 client devices
+ * Display divided into 4 sections with large digits and alert background invert
  */
 
 #include <ESP8266WiFi.h>
@@ -35,18 +36,19 @@ struct ClientData {
   unsigned long lastUpdate;
   unsigned long lastBlinkToggle;
   bool ledState;
+  bool displayInverted;  // For alert background invert effect
 };
 
 ClientData clients[MAX_CLIENTS] = {
-  {0, false, false, 0, 0, false},
-  {0, false, false, 0, 0, false},
-  {0, false, false, 0, 0, false},
-  {0, false, false, 0, 0, false}
+  {0, false, false, 0, 0, false, false},
+  {0, false, false, 0, 0, false, false},
+  {0, false, false, 0, 0, false, false},
+  {0, false, false, 0, 0, false, false}
 };
 
 // Timing
 unsigned long lastDisplayUpdate = 0;
-#define DISPLAY_UPDATE_INTERVAL 500
+#define DISPLAY_UPDATE_INTERVAL 250  // Increased for smoother animation
 
 // ============================================
 // Setup
@@ -121,9 +123,9 @@ void loop() {
   // Update LED states
   updateLEDs(now);
   
-  // Update display
+  // Update display with alert animation
   if (now - lastDisplayUpdate >= DISPLAY_UPDATE_INTERVAL) {
-    updateDisplay();
+    updateDisplay(now);
     lastDisplayUpdate = now;
   }
   
@@ -223,6 +225,7 @@ void readClientData() {
         
         clients[i].connected = false;
         clients[i].gasAlert = false;
+        clients[i].displayInverted = false;
         
         // Turn off LED for this device
         updateDeviceLED(i, false, false);
@@ -231,57 +234,69 @@ void readClientData() {
       // Check for stale connections
       if (millis() - clients[i].lastUpdate > 5000) {
         clients[i].connected = false;
+        clients[i].displayInverted = false;
       }
     }
   }
 }
 
 // ============================================
-// Update Display
+// Update Display with 4-section layout
 // ============================================
-void updateDisplay() {
+void updateDisplay(unsigned long now) {
   display.clearDisplay();
-  display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
   
-  // Header
-  display.println("=== Gas Monitoring ===");
-  display.println();
+  // Display 4 sections (2x2 grid)
+  // Each section: 64x32 pixels
   
-  // Device status
   for (int i = 0; i < MAX_CLIENTS; i++) {
-    display.print("Device ");
-    display.print(i + 1);
-    display.print(": ");
+    int col = i % 2;  // 0 or 1 (left or right)
+    int row = i / 2;  // 0 or 1 (top or bottom)
     
-    if (clients[i].connected) {
-      display.print(clients[i].gasLevel);
+    int x = col * 64;
+    int y = row * 32;
+    
+    // Draw section border
+    display.drawRect(x, y, 64, 32, SSD1306_WHITE);
+    
+    // Handle alert background invert
+    if (clients[i].gasAlert && clients[i].connected) {
+      // Toggle invert effect
+      if (now % 400 < 200) {  // Blink every 200ms
+        clients[i].displayInverted = true;
+      } else {
+        clients[i].displayInverted = false;
+      }
       
-      if (clients[i].gasAlert) {
-        display.print(" [ALERT!]");
+      if (clients[i].displayInverted) {
+        // Invert the section (fill black background, white text)
+        display.fillRect(x + 1, y + 1, 62, 30, SSD1306_BLACK);
+        display.setTextColor(SSD1306_WHITE);
       }
     } else {
-      display.print("--");
+      clients[i].displayInverted = false;
     }
     
-    display.println();
-  }
-  
-  // Display active alerts count
-  int alertCount = 0;
-  for (int i = 0; i < MAX_CLIENTS; i++) {
-    if (clients[i].gasAlert) {
-      alertCount++;
+    // Display device number
+    display.setTextSize(1);
+    display.setCursor(x + 4, y + 2);
+    display.print("D");
+    display.println(i + 1);
+    
+    // Display gas level (large digits)
+    display.setTextSize(2);
+    display.setCursor(x + 8, y + 12);
+    
+    if (clients[i].connected) {
+      // Pad with leading space for single/double digit numbers
+      if (clients[i].gasLevel < 1000) {
+        display.print(" ");
+      }
+      display.println(clients[i].gasLevel);
+    } else {
+      display.println("  --");
     }
-  }
-  
-  display.println();
-  if (alertCount > 0) {
-    display.print("ALERTS: ");
-    display.println(alertCount);
-  } else {
-    display.println("Status: Normal");
   }
   
   display.display();
