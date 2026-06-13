@@ -1,9 +1,11 @@
 /*
- * Gas Monitoring System - SERVER FIRMWARE
+ * Gas Monitoring System - SERVER FIRMWARE (IMPROVED)
  * ESP8266 Wemos D1 mini with SSD1306 Display and 4 LEDs
  * 
  * Acts as WiFi Access Point and displays data from all 4 client devices
  * Display divided into 4 sections with large digits and alert background invert
+ * 
+ * IMPROVED: Better diagnostics, client timeout detection, proper blink sync
  */
 
 #include <ESP8266WiFi.h>
@@ -16,6 +18,7 @@
 // ============================================
 #define MAX_CLIENTS 4
 #define DEVICE_ID 0  // Server device ID
+#define CLIENT_TIMEOUT 5000  // ms - time to consider client disconnected
 
 // Display
 #define SCREEN_WIDTH 128
@@ -48,7 +51,9 @@ ClientData clients[MAX_CLIENTS] = {
 
 // Timing
 unsigned long lastDisplayUpdate = 0;
-#define DISPLAY_UPDATE_INTERVAL 250  // Increased for smoother animation
+unsigned long lastStatusUpdate = 0;
+#define DISPLAY_UPDATE_INTERVAL 100  // Faster update for smooth blink
+#define STATUS_UPDATE_INTERVAL 1000  // Print status every second
 
 // ============================================
 // Setup
@@ -58,15 +63,25 @@ void setup() {
   delay(100);
   
   Serial.println("\n\n");
-  Serial.println("=== Gas Monitor SERVER ===\n");
+  Serial.println("╔════════════════════════════════╗");
+  Serial.println("║  Gas Monitor SERVER (Improved)  ║");
+  Serial.println("╚════════════════════════════════╝\n");
   
   // Initialize I2C and Display
   Wire.begin(I2C_SDA, I2C_SCL);
   
   if (!display.begin(SSD1306_SWITCHCAPVCC, SSD1306_I2C_ADDR)) {
-    Serial.println("SSD1306 allocation failed");
-    while(1);
+    Serial.println("❌ SSD1306 allocation failed");
+    Serial.println("   Check I2C wiring:");
+    Serial.println("   - D1 (GPIO5) -> SCL");
+    Serial.println("   - D2 (GPIO4) -> SDA");
+    Serial.println("   - Display address: 0x3C");
+    while(1) {
+      delay(100);
+    }
   }
+  
+  Serial.println("✅ Display initialized");
   
   display.clearDisplay();
   display.setTextSize(1);
@@ -87,12 +102,14 @@ void setup() {
   digitalWrite(D5, LOW);
   digitalWrite(D6, LOW);
   
+  Serial.println("✅ LED pins initialized");
+  
   // Start WiFi AP
   setupWiFiAP();
   
   // Start server
   wifiServer.begin();
-  Serial.println("WiFi server started!");
+  Serial.println("✅ WiFi server started on port 8888\n");
   
   delay(500);
   
@@ -106,6 +123,7 @@ void setup() {
   display.display();
   
   Serial.println("Setup complete!");
+  Serial.println("Waiting for client connections...\n");
 }
 
 // ============================================
@@ -120,6 +138,9 @@ void loop() {
   // Read data from connected clients
   readClientData();
   
+  // Check for stale connections
+  checkConnectionTimeout(now);
+  
   // Update LED states
   updateLEDs(now);
   
@@ -127,6 +148,12 @@ void loop() {
   if (now - lastDisplayUpdate >= DISPLAY_UPDATE_INTERVAL) {
     updateDisplay(now);
     lastDisplayUpdate = now;
+  }
+  
+  // Print status periodically
+  if (now - lastStatusUpdate >= STATUS_UPDATE_INTERVAL) {
+    printStatus();
+    lastStatusUpdate = now;
   }
   
   delay(10);
@@ -137,11 +164,15 @@ void loop() {
 // ============================================
 void setupWiFiAP() {
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);
+  bool result = WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);
   WiFi.softAPConfig(SERVER_IP_ADDR, SERVER_IP_ADDR, IPAddress(255, 255, 255, 0));
   
-  Serial.print("AP IP address: ");
+  Serial.print("📡 AP IP address: ");
   Serial.println(WiFi.softAPIP());
+  
+  if (!result) {
+    Serial.println("❌ Failed to start WiFi AP");
+  }
 }
 
 // ============================================
@@ -151,7 +182,7 @@ void handleNewConnections() {
   WiFiClient newClient = wifiServer.available();
   
   if (newClient) {
-    Serial.println("New client connection!");
+    Serial.println("\n🔗 New client connection!");
     
     // Find empty slot
     for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -159,12 +190,12 @@ void handleNewConnections() {
         serverClients[i] = newClient;
         clients[i].connected = true;
         clients[i].lastUpdate = millis();
-        Serial.print("Client assigned to slot ");
+        Serial.print("✅ Client assigned to slot ");
         Serial.println(i + 1);
+        Serial.println();
         
         // Turn on LED for this device
         updateDeviceLED(i, true, false);
-        
         break;
       }
     }
@@ -206,35 +237,35 @@ void readClientData() {
               clients[idx].gasAlert = (gasLevel >= GAS_THRESHOLD);
               clients[idx].lastUpdate = millis();
               
-              Serial.print("Device ");
+              Serial.print("📊 Device ");
               Serial.print(deviceId);
-              Serial.print(" - Gas Level: ");
+              Serial.print(" - Gas: ");
               Serial.print(gasLevel);
               Serial.print(" - Alert: ");
-              Serial.println(clients[idx].gasAlert ? "YES" : "NO");
+              Serial.println(clients[idx].gasAlert ? "⚠️  YES" : "✅ NO");
             }
           }
         }
       }
-    } else {
-      // Client disconnected
-      if (clients[i].connected) {
-        Serial.print("Client ");
-        Serial.print(i + 1);
-        Serial.println(" disconnected!");
-        
+    }
+  }
+}
+
+// ============================================
+// Check Connection Timeout
+// ============================================
+void checkConnectionTimeout(unsigned long now) {
+  for (int i = 0; i < MAX_CLIENTS; i++) {
+    // Check if client should be marked as disconnected
+    if (clients[i].connected && (now - clients[i].lastUpdate > CLIENT_TIMEOUT)) {
+      if (!serverClients[i].connected()) {
         clients[i].connected = false;
         clients[i].gasAlert = false;
         clients[i].displayInverted = false;
         
-        // Turn off LED for this device
-        updateDeviceLED(i, false, false);
-      }
-      
-      // Check for stale connections
-      if (millis() - clients[i].lastUpdate > 5000) {
-        clients[i].connected = false;
-        clients[i].displayInverted = false;
+        Serial.print("⚠️  Device ");
+        Serial.print(i + 1);
+        Serial.println(" disconnected (timeout)");
       }
     }
   }
@@ -257,26 +288,28 @@ void updateDisplay(unsigned long now) {
     int x = col * 64;
     int y = row * 32;
     
-    // Draw section border
-    display.drawRect(x, y, 64, 32, SSD1306_WHITE);
+    // Handle alert background invert (200ms blink period)
+    bool isBlinkOn = (now / 200) % 2 == 0;  // Toggle every 200ms
     
-    // Handle alert background invert
     if (clients[i].gasAlert && clients[i].connected) {
-      // Toggle invert effect
-      if (now % 400 < 200) {  // Blink every 200ms
-        clients[i].displayInverted = true;
+      // Gas detected - invert background
+      if (isBlinkOn) {
+        // White background, black text
+        display.fillRect(x, y, 64, 32, SSD1306_WHITE);
+        display.setTextColor(SSD1306_BLACK);
       } else {
-        clients[i].displayInverted = false;
-      }
-      
-      if (clients[i].displayInverted) {
-        // Invert the section (fill black background, white text)
-        display.fillRect(x + 1, y + 1, 62, 30, SSD1306_BLACK);
+        // Black background, white text (normal)
+        display.fillRect(x, y, 64, 32, SSD1306_BLACK);
         display.setTextColor(SSD1306_WHITE);
       }
     } else {
-      clients[i].displayInverted = false;
+      // Normal state - white text on black background
+      display.fillRect(x, y, 64, 32, SSD1306_BLACK);
+      display.setTextColor(SSD1306_WHITE);
     }
+    
+    // Draw section border
+    display.drawRect(x, y, 64, 32, SSD1306_WHITE);
     
     // Display device number
     display.setTextSize(1);
@@ -310,12 +343,10 @@ void updateLEDs(unsigned long now) {
   
   for (int i = 0; i < MAX_CLIENTS; i++) {
     if (clients[i].gasAlert) {
-      // Blink LED if gas detected
-      if (now - clients[i].lastBlinkToggle >= LED_BLINK_INTERVAL) {
-        clients[i].ledState = !clients[i].ledState;
-        digitalWrite(ledPins[i], clients[i].ledState ? HIGH : LOW);
-        clients[i].lastBlinkToggle = now;
-      }
+      // Blink LED if gas detected (200ms period)
+      bool isBlinkOn = (now / 200) % 2 == 0;
+      digitalWrite(ledPins[i], isBlinkOn ? HIGH : LOW);
+      
     } else if (clients[i].connected) {
       // Keep LED on if connected but no alert
       digitalWrite(ledPins[i], HIGH);
@@ -340,6 +371,25 @@ void updateDeviceLED(int deviceIdx, bool connected, bool alert) {
 }
 
 // ============================================
+// Print Status
+// ============================================
+void printStatus() {
+  int connectedCount = 0;
+  int alertCount = 0;
+  
+  for (int i = 0; i < MAX_CLIENTS; i++) {
+    if (clients[i].connected) connectedCount++;
+    if (clients[i].gasAlert) alertCount++;
+  }
+  
+  Serial.print("📊 Status: ");
+  Serial.print(connectedCount);
+  Serial.print(" connected, ");
+  Serial.print(alertCount);
+  Serial.println(" alerts");
+}
+
+// ============================================
 // Serial Debug
 // ============================================
 void serialEvent() {
@@ -348,29 +398,44 @@ void serialEvent() {
     cmd.trim();
     
     if (cmd == "status") {
-      Serial.println("\n=== Server Status ===");
+      Serial.println("\n╔════════════════════════════════╗");
+      Serial.println("║       SERVER STATUS REPORT       ║");
+      Serial.println("╚════════════════════════════════╝");
+      
       Serial.print("WiFi AP IP: ");
       Serial.println(WiFi.softAPIP());
+      
       Serial.print("Connected Clients: ");
       int connectedCount = 0;
       for (int i = 0; i < MAX_CLIENTS; i++) {
         if (clients[i].connected) connectedCount++;
       }
       Serial.println(connectedCount);
+      Serial.println();
       
       for (int i = 0; i < MAX_CLIENTS; i++) {
         Serial.print("Device ");
         Serial.print(i + 1);
         Serial.print(": ");
         if (clients[i].connected) {
-          Serial.print("Connected - Gas: ");
+          Serial.print("✅ Connected - Gas: ");
           Serial.print(clients[i].gasLevel);
           Serial.print(" - Alert: ");
-          Serial.println(clients[i].gasAlert ? "YES" : "NO");
+          Serial.print(clients[i].gasAlert ? "⚠️  YES" : "✅ NO");
+          Serial.print(" - Last update: ");
+          Serial.print((millis() - clients[i].lastUpdate) / 1000);
+          Serial.println("s ago");
         } else {
-          Serial.println("Disconnected");
+          Serial.println("❌ Disconnected");
         }
       }
+      Serial.println();
+    }
+    
+    else if (cmd == "help") {
+      Serial.println("\n📖 Available commands:");
+      Serial.println("  status  - Show device status");
+      Serial.println("  help    - Show this message");
       Serial.println();
     }
   }
