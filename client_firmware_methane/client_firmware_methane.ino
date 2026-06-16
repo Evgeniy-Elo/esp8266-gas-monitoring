@@ -1,5 +1,5 @@
 /*
- * Gas Monitoring System - CLIENT FIRMWARE (Methane PPM, WiFi)
+ * Gas Monitoring System - CLIENT FIRMWARE (LPG PPM, WiFi)
  * ESP8266 Wemos D1 mini with MQ-2 Sensor, LED, Buzzer
  *
  * Uses MQUnifiedsensor library to calculate LPG (пропан-бутан) concentration in PPM
@@ -25,8 +25,8 @@
 
 // LPG (пропан-бутан) regression values from MQ-2 datasheet
 // PPM = A * (RS/R0)^B
-#define CH4_A  (574.25)
-#define CH4_B  (−2.222)
+#define LPG_A  (574.25)
+#define LPG_B  (-2.222)
 
 MQUnifiedsensor MQ2(BOARD, VOLTAGE_RES, ADC_BIT_RES, MQ2_PIN, SENSOR_TYPE);
 
@@ -88,15 +88,15 @@ void setup() {
   Serial.print(SERVER_IP_ADDR);
   Serial.print(":");
   Serial.println(SERVER_PORT);
-  Serial.print("  Methane Threshold: ");
-  Serial.print(CH4_THRESHOLD);
+  Serial.print("  LPG Threshold: ");
+  Serial.print(LPG_THRESHOLD);
   Serial.println(" PPM");
   Serial.println();
 
   // Initialize MQ-2 sensor with MQUnifiedsensor
   MQ2.setRegressionMethod(1);  // PPM = A * ratio^B
-  MQ2.setA(CH4_A);
-  MQ2.setB(CH4_B);
+  MQ2.setA(LPG_A);
+  MQ2.setB(LPG_B);
 
   MQ2.init();
 
@@ -178,7 +178,7 @@ void loop() {
 
   // Detect gas threshold
   wasGasDetected = gasDetected;
-  gasDetected = (gasPPM >= CH4_THRESHOLD);
+  gasDetected = (gasPPM >= LPG_THRESHOLD);
 
   // Handle LED blinking when gas detected
   if (gasDetected) {
@@ -305,7 +305,7 @@ void connectToServer() {
 }
 
 // ============================================
-// Sensor Reading (Methane PPM via MQUnifiedsensor)
+// Sensor Reading (LPG PPM via MQUnifiedsensor)
 // ============================================
 void readSensor() {
   if (!sensorCalibrated) return;
@@ -385,7 +385,7 @@ void serialEvent() {
       Serial.println(" PPM");
 
       Serial.print("Threshold:        ");
-      Serial.print(CH4_THRESHOLD);
+      Serial.print(LPG_THRESHOLD);
       Serial.println(" PPM");
 
       Serial.print("Gas Detected:     ");

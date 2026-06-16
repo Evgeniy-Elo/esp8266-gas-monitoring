@@ -46,7 +46,7 @@ esp8266-gas-monitoring/
 │
 ├── WiFi версия (метан PPM):
 │   └── client_firmware_methane/
-│       └── client_firmware_methane.ino # Клиент (WiFi, CH4 в PPM)
+│       └── client_firmware_methane.ino # Клиент (WiFi, LPG в PPM)
 │
 ├── NRF24 версия:
 │   ├── client_firmware_nrf24/
@@ -56,7 +56,7 @@ esp8266-gas-monitoring/
 │
 ├── NRF24 версия (метан PPM):
 │   └── client_firmware_methane_nrf24/
-│       └── client_firmware_methane_nrf24.ino # Клиент (NRF24, CH4 в PPM)
+│       └── client_firmware_methane_nrf24.ino # Клиент (NRF24, LPG в PPM)
 │
 └── docs/
     └── NRF24_SETUP.md               # Подробная инструкция NRF24
@@ -89,7 +89,7 @@ esp8266-gas-monitoring/
    - `Adafruit SSD1306`
    - `Adafruit GFX Library`
    - `RF24` (только для NRF24 версии)
-   - `MQUnifiedsensor` (только для methane версии)
+   - `MQUnifiedsensor` (только для LPG PPM версии)
 
 ### PlatformIO:
 ```ini
@@ -102,7 +102,7 @@ lib_deps =
     adafruit/Adafruit SSD1306 @ ^2.5.0
     adafruit/Adafruit GFX Library @ ^1.11.0
     tmrh20/RF24 @ ^1.4.0       ; Только для NRF24
-    miguel5612/MQSensorsLib @ ^0.5.0  ; Только для methane версии
+    miguel5612/MQSensorsLib @ ^0.5.0  ; Только для LPG PPM версии
 ```
 
 ---
@@ -120,17 +120,17 @@ lib_deps =
 ### Общие параметры:
 ```cpp
 #define GAS_THRESHOLD 300            // Порог для MQ-2 raw ADC (0-1023)
-#define CH4_THRESHOLD 1000           // Порог метана (PPM) — для methane версии
+#define LPG_THRESHOLD 1000           // Порог LPG (PPM) — для LPG PPM версии
 #define MAX_CLIENTS 4                // Максимум устройств
 #define CLIENT_TIMEOUT 5000          // Таймаут отключения клиента (мс)
 #define CONNECTION_RETRY_INTERVAL 5000 // Переподключение каждые 5с
 ```
 
-### Параметры датчика MQ-2 (для methane версии)
+### Параметры датчика MQ-2 (для LPG версии)
 
 Коэффициенты регрессии (`PPM = A × ratio^B`) и сопротивление на чистом воздухе заданы в файлах прошивки (`client_firmware_methane.ino` / `client_firmware_methane_nrf24.ino`).
 
-В проекте используется метан (CH₄), но MQ-2 чувствителен ко всем газам. Ниже — полная таблица из библиотеки MQSensorsLib и даташита:
+В прошивке используются коэффициенты **LPG (пропан-бутан)**. Ниже — полная таблица из библиотеки MQSensorsLib и даташита MQ-2:
 
 ```cpp
 #define RatioMQ2CleanAir 9.83   // Rs/R0 на чистом воздухе (общий для всех газов)
@@ -138,9 +138,9 @@ lib_deps =
 
 | Газ | A | B | Источник |
 |-----|---|---|----------|
-| **CH₄ (метан)** | **447.71** | **−3.245** | know.smartelements.ru, Example 3 |
+| **LPG (пропан-бутан) — используется** | **574.25** | **−2.222** | MQSensorsLib MQ-2 example |
+| CH₄ (метан) | 447.71 | −3.245 | know.smartelements.ru, Example 3 |
 | H₂ (водород) | 987.99 | −2.162 | MQSensorsLib ESP32 example |
-| LPG (пропан-бутан) — используется | 574.25 | −2.222 | MQSensorsLib MQ-2 example |
 | CO (угарный газ) | 36974 | −3.109 | MQSensorsLib ESP32 example |
 | Alcohol (этанол) | 3616.1 | −2.675 | MQSensorsLib ESP32 example |
 | Propane (пропан) | 658.71 | −2.168 | MQSensorsLib ESP32 example |
@@ -190,9 +190,9 @@ lib_deps =
 
 ---
 
-## 🚀 Быстрый старт - WiFi версия (метан PPM)
+## 🚀 Быстрый старт - WiFi версия (LPG PPM)
 
-Прошивка `client_firmware_methane` использует библиотеку **MQUnifiedsensor** и выдаёт концентрацию метана (CH₄) в PPM вместо raw ADC.
+Прошивка `client_firmware_methane` использует библиотеку **MQUnifiedsensor** и выдаёт концентрацию LPG (пропан-бутан) в PPM вместо raw ADC. Коэффициенты: A=574.25, B=-2.222.
 
 ### Шаг 1: Сервер (тот же, что для raw ADC)
 Используйте `server_firmware/server_firmware.ino` — протокол передачи данных (uint16_t) совместим.
@@ -204,8 +204,8 @@ lib_deps =
 4. Загрузите на клиент
 
 ### Отличия от raw ADC версии:
-- На экране сервера отображаются **PPM метана**, а не raw ADC
-- Порог срабатывания — `CH4_THRESHOLD` (1000 PPM)
+- На экране сервера отображаются **PPM LPG**, а не raw ADC
+- Порог срабатывания — `LPG_THRESHOLD` (1000 PPM)
 - Калибровка при старте (10 измерений), ручная — командой `calibrate`
 - Команды Serial: `status`, `test` (шлёт 1500 PPM), `calibrate`, `restart`, `help`
 
@@ -220,7 +220,7 @@ lib_deps =
 2. **⚠️ Обязателен конденсатор 10µF на VCC!**
 3. Используйте файлы из папок:
    - `server_firmware_nrf24/` или `server_firmware/` (сервер один для обеих версий)
-   - `client_firmware_nrf24/` (raw ADC) или `client_firmware_methane_nrf24/` (CH4 PPM)
+    - `client_firmware_nrf24/` (raw ADC) или `client_firmware_methane_nrf24/` (LPG PPM)
 4. Остальное как в WiFi версии
 
 ---
@@ -244,7 +244,7 @@ lib_deps =
 └─────────────┴─────────────┘
 ```
 
-### Нормальное состояние (метан PPM):
+### Нормальное состояние (LPG PPM):
 ```
 ┌─────────────┬─────────────┐
 │  D1         │  D2         │
@@ -335,9 +335,9 @@ Device 4: ✅ Connected - Gas: 189 - Alert: ✅ NO - Last update: 3s ago
 - Дайте датчику 5-10 минут на прогрев
 - Проверьте аналоговое подключение (A0)
 - **MQ-2 требует питание 5V!** Wemos A0 рассчитан на 0–3.3V — необходим делитель напряжения 10kΩ + 20kΩ на выходе датчика (см. «Питание MQ-2 и Wemos» ниже)
-- Если methane версия выдаёт 0 PPM при старте — дайте датчику прогреться, затем выполните `calibrate`
+- Если LPG версия выдаёт 0 PPM при старте — дайте датчику прогреться, затем выполните `calibrate`
 
-**Methane версия выдаёт 0 PPM:**
+**LPG версия выдаёт 0 PPM:**
 - Датчик не прогрет — подождите 5–10 мин и выполните `calibrate`
 - Сбой калибровки — проверьте, что MQ-2 запитан 5V
 
@@ -402,13 +402,13 @@ MQ-2 A0  ── 10kΩ ──┬── 20kΩ ── GND
 ```cpp
 struct {
   uint8_t  deviceId;     // 1-4
-  uint16_t gasLevel;     // 0-1023 (raw ADC) или 0-65535 (PPM, methane)
+  uint16_t gasLevel;     // 0-1023 (raw ADC) или 0-65535 (PPM, LPG)
   uint32_t timestamp;    // мс
 }
 ```
 
 Значение `gasLevel` передаётся как `uint16_t` — серверу не важно, raw это ADC или PPM.  
-Methane версия укладывается в 0–5000 PPM (реальный диапазон MQ-2).
+LPG версия укладывается в 0–5000 PPM (реальный диапазон MQ-2).
 
 ---
 

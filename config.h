@@ -64,7 +64,7 @@
 // Gas Threshold
 // ============================================
 #define GAS_THRESHOLD 300   // MQ-2 threshold value for dangerous concentration (raw ADC)
-#define CH4_THRESHOLD 1000  // Methane threshold in PPM (for MQUnifiedsensor version)
+#define LPG_THRESHOLD 1000  // LPG threshold in PPM (for MQUnifiedsensor version)
 
 // ============================================
 // Timing Configuration

@@ -49,9 +49,10 @@ NRF24L01+PA+LNA
 │ CE  ─────────> D4    │
 │ CSN ─────────> D8    │
 │ SCK ─────────> D5    │
-│ MOSI────────> D7    │
-│ MISO────────> D6    │
-│ IRQ ─────────> (не используется)
+│ MOSI────────> D7     │
+│ MISO────────> D6     │
+│ IRQ ─────────> (не   │
+│  используется)       │
 └──────────────────────┘
 
 ⚠️ ВАЖНО: Подключите конденсатор 10µF параллельно VCC к GND модуля!
@@ -97,9 +98,9 @@ lib_deps =
    - Измерения: 0–1023 (raw)
    - Команды: `status`, `test`, `restart`, `help`
 
-2. **Метан PPM** (`client_firmware_methane_nrf24/`):
+2. **LPG PPM** (`client_firmware_methane_nrf24/`):
    - Откройте `client_firmware_methane_nrf24.ino`
-   - Измерения: CH₄ в PPM (MQUnifiedsensor)
+   - Измерения: LPG (пропан-бутан) в PPM (MQUnifiedsensor)
    - Требует установки библиотеки `MQUnifiedsensor`
    - Команды: `status`, `test` (шлёт 1500 PPM), `calibrate`, `restart`, `help`
    - **Совместим с тем же сервером** — формат пакета одинаков (uint16_t)
@@ -132,7 +133,8 @@ struct PayloadData {
 
 | Газ | A | B |
 |-----|---|---|
-| **CH₄ (метан) — по умолчанию** | **447.71** | **−3.245** |
+| **LPG (пропан-бутан) — по умолчанию** | **574.25** | **−2.222** |
+| CH₄ (метан) | 447.71 | −3.245 |
 | H₂ (водород) | 987.99 | −2.162 |
 | LPG (пропан-бутан) | 574.25 | −2.222 |
 | CO (угарный газ) | 36974 | −3.109 |
@@ -153,10 +155,10 @@ restart  - Перезагрузка устройства
 help     - Показать список команд
 ```
 
-**Клиент (метан PPM):**
+**Клиент (LPG PPM):**
 ```
 status   - Показать статус радио и газовые данные (PPM)
-test     - Отправить тестовый пакет (1500 PPM — выше CH4_THRESHOLD)
+test     - Отправить тестовый пакет (1500 PPM — выше LPG_THRESHOLD)
 calibrate - Повторная калибровка датчика (10 измерений)
 restart  - Перезагрузка устройства
 help     - Показать список команд
@@ -173,7 +175,7 @@ help    - Показать список команд
 ```
 > status
 ╔════════════════════════════════╗
-║       SERVER STATUS REPORT       ║
+║     SERVER STATUS REPORT       ║
 ╚════════════════════════════════╝
 NRF24 Radio:      ✅ Connected
 Connected Clients: 3
@@ -206,17 +208,17 @@ Configuration:
 ❌ Failed to send - Device 1
 ```
 
-### Пример вывода клиента (метан PPM):
+### Пример вывода клиента (LPG PPM):
 ```
 ╔════════════════════════════════╗
-║ Gas Monitor Client CH4 (NRF24) ║
+║ Gas Monitor Client LPG (NRF24) ║
 ╚════════════════════════════════╝
 
 Device ID: 2
 
 Configuration:
   Gas Threshold: 1000 PPM
-  CH4_A: 447.71, CH4_B: -3.245
+  LPG_A: 574.25, LPG_B: -2.222
   RatioMQ2CleanAir: 9.83
   NRF24 Channel: 76
   NRF24 Data Rate: 250 kbps
@@ -225,9 +227,9 @@ Configuration:
 ✅ Calibration complete (10 readings): R0 = 2.45
 ✅ NRF24 initialized! Device 2 ready
 
-📤 Device 2 - Gas: 450 PPM
-📤 Device 2 - Gas: 320 PPM
-📤 Device 2 - Gas: 1200 PPM  ⚠️  GAS DETECTED!
+📤 Device 2 - LPG: 450 PPM
+📤 Device 2 - LPG: 320 PPM
+📤 Device 2 - LPG: 1200 PPM  ⚠️  GAS DETECTED!
 ❌ Failed to send - Device 2
 ```
 

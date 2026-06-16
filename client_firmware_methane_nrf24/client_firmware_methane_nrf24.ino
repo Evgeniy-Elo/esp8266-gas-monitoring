@@ -1,5 +1,5 @@
 /*
- * Gas Monitoring System - CLIENT FIRMWARE (Methane PPM, NRF24L01+PA+LNA)
+ * Gas Monitoring System - CLIENT FIRMWARE (LPG PPM, NRF24L01+PA+LNA)
  * ESP8266 Wemos D1 mini with MQ-2 Sensor, LED, Buzzer, NRF24L01+PA+LNA
  *
  * Uses MQUnifiedsensor library to calculate LPG (пропан-бутан) concentration in PPM
@@ -26,8 +26,8 @@
 
 // LPG (пропан-бутан) regression values from MQ-2 datasheet
 // PPM = A * (RS/R0)^B
-#define CH4_A  (574.25)
-#define CH4_B  (−2.222)
+#define LPG_A  (574.25)
+#define LPG_B  (-2.222)
 
 MQUnifiedsensor MQ2(BOARD, VOLTAGE_RES, ADC_BIT_RES, MQ2_PIN, SENSOR_TYPE);
 
@@ -91,7 +91,7 @@ void setup() {
   // Print configuration
   Serial.println("Configuration:");
   Serial.print("  LPG (пропан-бутан) Threshold: ");
-  Serial.print(CH4_THRESHOLD);
+  Serial.print(LPG_THRESHOLD);
   Serial.println(" PPM");
   Serial.print("  NRF24 Channel: ");
   Serial.println(NRF24_CHANNEL);
@@ -139,8 +139,8 @@ void setup() {
 
   // Initialize MQ-2 sensor with MQUnifiedsensor
   MQ2.setRegressionMethod(1);  // PPM = A * ratio^B
-  MQ2.setA(CH4_A);
-  MQ2.setB(CH4_B);
+  MQ2.setA(LPG_A);
+  MQ2.setB(LPG_B);
 
   MQ2.init();
 
@@ -188,7 +188,7 @@ void loop() {
 
   // Detect gas threshold
   wasGasDetected = gasDetected;
-  gasDetected = (gasPPM >= CH4_THRESHOLD);
+  gasDetected = (gasPPM >= LPG_THRESHOLD);
 
   // Handle LED blinking when gas detected
   if (gasDetected) {
@@ -223,7 +223,7 @@ void loop() {
 }
 
 // ============================================
-// Sensor Reading (Methane PPM via MQUnifiedsensor)
+// Sensor Reading (LPG PPM via MQUnifiedsensor)
 // ============================================
 void readSensor() {
   if (!sensorCalibrated) return;
@@ -287,7 +287,7 @@ void serialEvent() {
       Serial.println(" PPM");
 
       Serial.print("Threshold:        ");
-      Serial.print(CH4_THRESHOLD);
+      Serial.print(LPG_THRESHOLD);
       Serial.println(" PPM");
 
       Serial.print("Gas Detected:     ");
@@ -300,7 +300,7 @@ void serialEvent() {
       Serial.println("📨 Sending test packet...");
       PayloadData testPayload;
       testPayload.deviceId = DEVICE_ID;
-      testPayload.gasLevel = 1500;  // Above CH4_THRESHOLD (1000 PPM)
+      testPayload.gasLevel = 1500;  // Above LPG_THRESHOLD (1000 PPM)
       testPayload.timestamp = millis();
 
       if (radio.write(&testPayload, sizeof(testPayload))) {
@@ -311,7 +311,7 @@ void serialEvent() {
     }
 
     else if (cmd == "calibrate") {
-      Serial.println("🔬 Recalibrating MQ-2 for methane...");
+      Serial.println("🔬 Recalibrating MQ-2 for LPG...");
       float calcR0 = 0;
       for (int i = 1; i <= 10; i++) {
         MQ2.update();
