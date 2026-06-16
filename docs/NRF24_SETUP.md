@@ -89,14 +89,26 @@ lib_deps =
 5. Откройте Serial Monitor (115200 baud)
 
 ### Для каждого клиента (4 штуки):
-1. Откройте `client_firmware_nrf24/client_firmware_nrf24.ino`
-2. **Измените `DEVICE_ID`:**
+
+**Выберите тип клиента:**
+
+1. **Raw ADC** (`client_firmware_nrf24/`):
+   - Откройте `client_firmware_nrf24.ino`
+   - Измерения: 0–1023 (raw)
+   - Команды: `status`, `test`, `restart`, `help`
+
+2. **Метан PPM** (`client_firmware_methane_nrf24/`):
+   - Откройте `client_firmware_methane_nrf24.ino`
+   - Измерения: CH₄ в PPM (MQUnifiedsensor)
+   - Требует установки библиотеки `MQUnifiedsensor`
+   - Команды: `status`, `test` (шлёт 1500 PPM), `calibrate`, `restart`, `help`
+   - **Совместим с тем же сервером** — формат пакета одинаков (uint16_t)
+
+3. **Для обоих типов:**
    ```cpp
    #define DEVICE_ID 1  // Измените на 1, 2, 3 или 4
    ```
-3. Проверьте подключение NRF24
-4. Загрузите
-5. Откройте Serial Monitor и посмотрите логи
+   Проверьте подключение NRF24, загрузите, откройте Serial Monitor.
 
 ## 📊 Формат данных
 
@@ -114,16 +126,40 @@ struct PayloadData {
 **Мощность**: MAX (PA+LNA модуль)  
 **Повторные попытки**: 15 x 250µs
 
+### Параметры регрессии MQ-2 (все газы)
+
+Формула: `PPM = A × ratio^B`, `RatioMQ2CleanAir = 9.83` (общий для всех газов).
+
+| Газ | A | B |
+|-----|---|---|
+| **CH₄ (метан) — по умолчанию** | **447.71** | **−3.245** |
+| H₂ (водород) | 987.99 | −2.162 |
+| LPG (пропан-бутан) | 574.25 | −2.222 |
+| CO (угарный газ) | 36974 | −3.109 |
+| Alcohol (этанол) | 3616.1 | −2.675 |
+| Propane (пропан) | 658.71 | −2.168 |
+
+Значения взяты из примеров MQSensorsLib и даташита MQ-2. Для смены газа измените `MQ2.setA()` / `MQ2.setB()` в прошивке.
+
 ## 🔍 Отладка
 
 ### Serial Monitor команды:
 
-**Клиент:**
+**Клиент (raw ADC):**
 ```
-status  - Показать статус радио и газовые данные
-test    - Отправить тестовый пакет (gasLevel=500 для alert)
-restart - Перезагрузка устройства
-help    - Показать список команд
+status   - Показать статус радио и газовые данные
+test     - Отправить тестовый пакет (gasLevel=500)
+restart  - Перезагрузка устройства
+help     - Показать список команд
+```
+
+**Клиент (метан PPM):**
+```
+status   - Показать статус радио и газовые данные (PPM)
+test     - Отправить тестовый пакет (1500 PPM — выше CH4_THRESHOLD)
+calibrate - Повторная калибровка датчика (10 измерений)
+restart  - Перезагрузка устройства
+help     - Показать список команд
 ```
 
 **Сервер:**
@@ -148,7 +184,7 @@ Device 3: ❌ Disconnected
 Device 4: ✅ Connected - Gas: 189 - Alert: ✅ NO - Last update: 5s ago
 ```
 
-### Пример вывода клиента:
+### Пример вывода клиента (raw ADC):
 ```
 ╔════════════════════════════════╗
 ║   Gas Monitor Client (NRF24)   ║
@@ -168,6 +204,31 @@ Configuration:
 📤 Device 1 - Gas: 267
 📤 Device 1 - Gas: 310  ⚠️  GAS DETECTED!
 ❌ Failed to send - Device 1
+```
+
+### Пример вывода клиента (метан PPM):
+```
+╔════════════════════════════════╗
+║ Gas Monitor Client CH4 (NRF24) ║
+╚════════════════════════════════╝
+
+Device ID: 2
+
+Configuration:
+  Gas Threshold: 1000 PPM
+  CH4_A: 447.71, CH4_B: -3.245
+  RatioMQ2CleanAir: 9.83
+  NRF24 Channel: 76
+  NRF24 Data Rate: 250 kbps
+  NRF24 PA Level: MAX
+
+✅ Calibration complete (10 readings): R0 = 2.45
+✅ NRF24 initialized! Device 2 ready
+
+📤 Device 2 - Gas: 450 PPM
+📤 Device 2 - Gas: 320 PPM
+📤 Device 2 - Gas: 1200 PPM  ⚠️  GAS DETECTED!
+❌ Failed to send - Device 2
 ```
 
 ## ⚠️ Возможные проблемы

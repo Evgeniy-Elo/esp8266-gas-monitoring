@@ -51,7 +51,7 @@
 // Hardware Client Configuration (Common)
 // ============================================
 // MQ-2 Sensor
-#define MQ2_PIN A0          // Analog input for MQ-2 (ADC)
+#define MQ2_PIN A0          // Analog input for MQ-2 (ADC) — requires voltage divider 10k+20k from MQ-2 5V output
 
 // LED pins
 #define LED_PIN D3          // GPIO0 - warning LED (clients)
@@ -63,7 +63,8 @@
 // ============================================
 // Gas Threshold
 // ============================================
-#define GAS_THRESHOLD 300   // MQ-2 threshold value for dangerous concentration
+#define GAS_THRESHOLD 300   // MQ-2 threshold value for dangerous concentration (raw ADC)
+#define CH4_THRESHOLD 1000  // Methane threshold in PPM (for MQUnifiedsensor version)
 
 // ============================================
 // Timing Configuration
