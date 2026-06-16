@@ -120,51 +120,69 @@ struct PayloadData {
 
 **Клиент:**
 ```
-status  - Показать статус подключения и газовые данные
-test    - Отправить тестовый пакет (500 ppx для alert)
+status  - Показать статус радио и газовые данные
+test    - Отправить тестовый пакет (gasLevel=500 для alert)
+restart - Перезагрузка устройства
+help    - Показать список команд
 ```
 
 **Сервер:**
 ```
-status  - Показать статус всех устройств и сигнал
-rssi    - Показать уровень сигнала (RSSI)
+status  - Показать статус всех устройств
+rssi    - Показать уровень сигнала
+help    - Показать список команд
 ```
 
 ### Пример вывода сервера:
 ```
-=== Server Status (NRF24) ===
-NRF24: OK
+> status
+╔════════════════════════════════╗
+║       SERVER STATUS REPORT       ║
+╚════════════════════════════════╝
+NRF24 Radio:      ✅ Connected
 Connected Clients: 3
-Device 1: Connected - Gas: 245 - Alert: NO - Uptime: 5s
-Device 2: Connected - Gas: 312 - Alert: YES - Uptime: 3s
-Device 3: Disconnected
-Device 4: Connected - Gas: 189 - Alert: NO - Uptime: 12s
+
+Device 1: ✅ Connected - Gas: 245 - Alert: ✅ NO - Last update: 2s ago
+Device 2: ✅ Connected - Gas: 312 - Alert: ⚠️  YES - Last update: 1s ago
+Device 3: ❌ Disconnected
+Device 4: ✅ Connected - Gas: 189 - Alert: ✅ NO - Last update: 5s ago
 ```
 
 ### Пример вывода клиента:
 ```
-=== Gas Monitor Client (NRF24) - Device 1 ===
-NRF24 initialized!
+╔════════════════════════════════╗
+║   Gas Monitor Client (NRF24)   ║
+╚════════════════════════════════╝
+
 Device ID: 1
-Data sent - Device 1: 245 ✓
-Data sent - Device 1: 267 ✓
-Data sent - Device 1: 310 ✓
-Failed to send - Device 1: 298 ✗
+
+Configuration:
+  Gas Threshold: 300
+  NRF24 Channel: 76
+  NRF24 Data Rate: 250 kbps
+  NRF24 PA Level: MAX
+
+✅ NRF24 initialized! Device 1 ready
+
+📤 Device 1 - Gas: 245
+📤 Device 1 - Gas: 267
+📤 Device 1 - Gas: 310  ⚠️  GAS DETECTED!
+❌ Failed to send - Device 1
 ```
 
 ## ⚠️ Возможные проблемы
 
 ### NRF24 не инициализируется:
 ```
-NRF24 initialization failed!
-Check wiring:
-  CE -> D4
-  CSN -> D8
-  MOSI -> D7 (GPIO13)
-  MISO -> D6 (GPIO12)
-  SCK -> D5 (GPIO14)
-  GND -> GND
-  VCC -> 3.3V with 10µF capacitor
+❌ NRF24 initialization failed!
+   Check wiring:
+   CE  -> D4 (GPIO2)
+   CSN -> D8 (GPIO15)
+   MOSI -> D7 (GPIO13)
+   MISO -> D6 (GPIO12)
+   SCK  -> D5 (GPIO14)
+   GND  -> GND
+   VCC  -> 3.3V with 10µF capacitor
 ```
 
 **Решение:**
@@ -176,7 +194,7 @@ Check wiring:
 ### Сервер не видит клиентов:
 - Убедитесь, что оба модуля на канале 76
 - Проверьте адрес "GASMO" совпадает на сервере и клиентах
-- Попробуйте включить PA+LNA в config.h
+- Убедитесь, что `NRF24_PA_LEVEL` в config.h установлен в 3 (макс. мощность)
 - Уменьшите расстояние для теста
 
 ### Нестабильная связь:

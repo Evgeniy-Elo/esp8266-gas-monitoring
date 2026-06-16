@@ -16,13 +16,9 @@
 // ============================================
 // Server Configuration
 // ============================================
-#define MAX_CLIENTS 4
 #define DEVICE_ID 0  // Server device ID
-#define CLIENT_TIMEOUT 5000  // ms - time to consider client disconnected
 
 // Display
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 // WiFi Server
@@ -52,8 +48,6 @@ ClientData clients[MAX_CLIENTS] = {
 // Timing
 unsigned long lastDisplayUpdate = 0;
 unsigned long lastStatusUpdate = 0;
-#define DISPLAY_UPDATE_INTERVAL 100  // Faster update for smooth blink
-#define STATUS_UPDATE_INTERVAL 1000  // Print status every second
 
 // ============================================
 // Setup
@@ -64,7 +58,7 @@ void setup() {
   
   Serial.println("\n\n");
   Serial.println("╔════════════════════════════════╗");
-  Serial.println("║  Gas Monitor SERVER (Improved)  ║");
+  Serial.println("║  Gas Monitor SERVER (Improved) ║");
   Serial.println("╚════════════════════════════════╝\n");
   
   // Initialize I2C and Display
@@ -93,14 +87,14 @@ void setup() {
   
   // Initialize LED pins
   pinMode(D3, OUTPUT);  // LED for device 1
-  pinMode(D4, OUTPUT);  // LED for device 2
-  pinMode(D5, OUTPUT);  // LED for device 3
-  pinMode(D6, OUTPUT);  // LED for device 4
+  pinMode(D5, OUTPUT);  // LED for device 2
+  pinMode(D6, OUTPUT);  // LED for device 3
+  pinMode(D7, OUTPUT);  // LED for device 4
   
   digitalWrite(D3, LOW);
-  digitalWrite(D4, LOW);
   digitalWrite(D5, LOW);
   digitalWrite(D6, LOW);
+  digitalWrite(D7, LOW);
   
   Serial.println("✅ LED pins initialized");
   

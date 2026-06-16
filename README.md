@@ -47,13 +47,14 @@ esp8266-gas-monitoring/
 ├── NRF24 версия:
 │   ├── client_firmware_nrf24/
 │   │   └── client_firmware_nrf24.ino # Клиент (NRF24)
-│   ├── server_firmware_nrf24/
-│   │   └── server_firmware_nrf24.ino # Сервер (NRF24)
-│   └── docs/
-│       └── NRF24_SETUP.md            # Подробная инструкция NRF24
+│   └── server_firmware_nrf24/
+│       └── server_firmware_nrf24.ino # Сервер (NRF24)
 │
 └── docs/
-    └── WIRING.md                     # Схема подключения всех компонентов
+    └── NRF24_SETUP.md               # Подробная инструкция NRF24
+├── docs/
+│   └── NRF24_SETUP.md               # Подробная инструкция NRF24
+│
 ```
 
 ---
@@ -109,16 +110,29 @@ lib_deps =
 #define SERVER_PORT 8888
 ```
 
-### Пороги срабатывания:
+### Общие параметры:
 ```cpp
-#define GAS_THRESHOLD 300   // Пороговое значение для датчика MQ-2
+#define GAS_THRESHOLD 300            // Порог для MQ-2 (0-1023)
+#define MAX_CLIENTS 4                // Максимум устройств
+#define CLIENT_TIMEOUT 5000          // Таймаут отключения клиента (мс)
+#define CONNECTION_RETRY_INTERVAL 5000 // Переподключение каждые 5с
 ```
 
 ### Таймеры:
 ```cpp
-#define SENSOR_READ_INTERVAL 100    // Чтение датчика каждые 100мс
-#define DATA_SEND_INTERVAL 500      // Отправка данных каждые 500мс
-#define LED_BLINK_INTERVAL 200      // Мигание LED при alert каждые 200мс
+#define SENSOR_READ_INTERVAL 100     // Чтение датчика каждые 100мс
+#define DATA_SEND_INTERVAL 500       // Отправка данных каждые 500мс
+#define LED_BLINK_INTERVAL 200       // Мигание LED при alert каждые 200мс
+#define BUZZER_TONE_DURATION 100     // Длительность сигнала зуммера (мс)
+```
+
+### NRF24:
+```cpp
+#define NRF24_CHANNEL 76             // 2.476 GHz
+#define NRF24_DATA_RATE 250          // 250 kbps
+#define NRF24_PA_LEVEL 3             // 0=min, 3=max
+#define CE_PIN D4
+#define CSN_PIN D8
 ```
 
 ---
@@ -200,30 +214,40 @@ lib_deps =
 
 ## 🔍 Отладка
 
-### WiFi версия - Serial Monitor
+### WiFi версия — Serial Monitor
 
 **Клиент:**
 ```
-Введите: status
-Device ID: 1
-WiFi: Connected
-Server: Connected
-Gas Level: 245
-Gas Detected: NO
+> status
+╔════════════════════════════════╗
+║       DEVICE STATUS REPORT       ║
+╚════════════════════════════════╝
+Device ID:        1
+WiFi Status:      ✅ Connected
+Local IP:         192.168.4.2
+Signal Strength:  -45 dBm
+Server Status:    ✅ Connected
+Gas Level:        245
+Gas Threshold:    300
+Gas Detected:     ✅ NO
 ```
 
 **Сервер:**
 ```
-Введите: status
+> status
+╔════════════════════════════════╗
+║       SERVER STATUS REPORT       ║
+╚════════════════════════════════╝
 WiFi AP IP: 192.168.4.1
 Connected Clients: 3
-Device 1: Connected - Gas: 245 - Alert: NO
-Device 2: Connected - Gas: 312 - Alert: YES
-Device 3: Disconnected
-Device 4: Connected - Gas: 189 - Alert: NO
+
+Device 1: ✅ Connected - Gas: 245 - Alert: ✅ NO - Last update: 2s ago
+Device 2: ✅ Connected - Gas: 312 - Alert: ⚠️  YES - Last update: 1s ago
+Device 3: ❌ Disconnected
+Device 4: ✅ Connected - Gas: 189 - Alert: ✅ NO - Last update: 3s ago
 ```
 
-### NRF24 версия - см. `NRF24_SETUP.md`
+### NRF24 версия — см. `NRF24_SETUP.md`
 
 ---
 
@@ -281,7 +305,7 @@ struct {
 
 ### Клиент (при уровне > 300):
 - 🔴 Светодиод мигает (200мс период)
-- 🔔 Пьезодинамик издаёт звук (1000 Гц, прерывистый)
+- 🔔 Активный зуммер прерывисто пищит (100мс вкл/выкл)
 
 ### Сервер:
 - 🟢 LED соответствующего устройства мигает (200мс период)

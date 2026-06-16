@@ -23,7 +23,6 @@ bool connected = false;
 // Connection attempts tracking
 int connectionAttempts = 0;
 unsigned long lastConnectionAttempt = 0;
-#define CONNECTION_RETRY_INTERVAL 5000  // Try to reconnect every 5 seconds
 
 // ============================================
 // Sensor and Hardware State
@@ -141,15 +140,11 @@ void loop() {
   if (gasDetected) {
     if (now - lastBuzzerToggle >= BUZZER_TONE_DURATION) {
       buzzerState = !buzzerState;
-      if (buzzerState) {
-        tone(BUZZER_PIN, BUZZER_FREQUENCY);
-      } else {
-        noTone(BUZZER_PIN);
-      }
+      digitalWrite(BUZZER_PIN, buzzerState ? HIGH : LOW);
       lastBuzzerToggle = now;
     }
   } else {
-    noTone(BUZZER_PIN);
+    digitalWrite(BUZZER_PIN, LOW);
     buzzerState = LOW;
   }
   

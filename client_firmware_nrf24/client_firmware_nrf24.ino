@@ -6,7 +6,6 @@
  * Wireless communication via 2.4GHz NRF24 radio (longer range)
  */
 
-#include <ESP8266WiFi.h>
 #include <SPI.h>
 #include <RF24.h>
 #include "config.h"
@@ -17,13 +16,11 @@
 #define DEVICE_ID 1  // Change to 1-4 for each client device
 
 // NRF24 Configuration
-#define CE_PIN D4    // Chip Enable
-#define CSN_PIN D8   // Chip Select (CS)
 RF24 radio(CE_PIN, CSN_PIN);
 
 // NRF24 Settings
 const byte address[6] = "GASMO";  // Pipe address
-const uint16_t SEND_INTERVAL = 500;  // ms between sends
+// Uses DATA_SEND_INTERVAL from config.h
 
 // Payload structure
 struct PayloadData {
@@ -57,9 +54,13 @@ void setup() {
   delay(100);
   
   Serial.println("\n\n");
-  Serial.print("=== Gas Monitor Client (NRF24) - Device ");
-  Serial.print(DEVICE_ID);
-  Serial.println(" ===\n");
+  Serial.print("╔════════════════════════════════╗\n");
+  Serial.print("║   Gas Monitor Client (NRF24)   ║\n");
+  Serial.print("╚════════════════════════════════╝\n\n");
+  
+  Serial.print("Device ID: ");
+  Serial.println(DEVICE_ID);
+  Serial.println();
   
   // Initialize pins
   pinMode(LED_PIN, OUTPUT);
@@ -69,20 +70,33 @@ void setup() {
   digitalWrite(LED_PIN, LOW);
   digitalWrite(BUZZER_PIN, LOW);
   
+  // Print configuration
+  Serial.println("Configuration:");
+  Serial.print("  Gas Threshold: ");
+  Serial.println(GAS_THRESHOLD);
+  Serial.print("  NRF24 Channel: ");
+  Serial.println(NRF24_CHANNEL);
+  Serial.print("  NRF24 Data Rate: ");
+  Serial.print(NRF24_DATA_RATE);
+  Serial.println(" kbps");
+  Serial.print("  NRF24 PA Level: ");
+  Serial.println(NRF24_PA_LEVEL == 3 ? "MAX" : String(NRF24_PA_LEVEL));
+  Serial.println();
+  
   // Initialize SPI and NRF24
   SPI.begin();
   delay(100);
   
   if (!radio.begin()) {
-    Serial.println("NRF24 initialization failed!");
-    Serial.println("Check wiring:");
-    Serial.println("  CE -> D4");
-    Serial.println("  CSN -> D8");
-    Serial.println("  MOSI -> D7 (GPIO13)");
-    Serial.println("  MISO -> D6 (GPIO12)");
-    Serial.println("  SCK -> D5 (GPIO14)");
-    Serial.println("  GND -> GND");
-    Serial.println("  VCC -> 3.3V with 10µF capacitor");
+    Serial.println("❌ NRF24 initialization failed!");
+    Serial.println("   Check wiring:");
+    Serial.println("   CE  -> D4 (GPIO2)");
+    Serial.println("   CSN -> D8 (GPIO15)");
+    Serial.println("   MOSI -> D7 (GPIO13)");
+    Serial.println("   MISO -> D6 (GPIO12)");
+    Serial.println("   SCK  -> D5 (GPIO14)");
+    Serial.println("   GND  -> GND");
+    Serial.println("   VCC  -> 3.3V with 10µF capacitor");
     while (1) {
       digitalWrite(LED_PIN, HIGH);
       delay(100);
@@ -94,18 +108,18 @@ void setup() {
   // Configure NRF24 with PA and LNA enabled
   radio.setPALevel(RF24_PA_MAX);      // Maximum power
   radio.setDataRate(RF24_250KBPS);    // Slower for better range
-  radio.setChannel(76);               // Channel 76 (2.476GHz)
+  radio.setChannel(NRF24_CHANNEL);    // From config.h
   radio.setRetries(15, 15);           // 15 retries, 15*250µs delay
   radio.openWritingPipe(address);
   radio.stopListening();              // Client is transmitter only
   radio.setAutoAck(true);
   
-  Serial.println("NRF24 initialized!");
-  Serial.print("Device ID: ");
-  Serial.println(DEVICE_ID);
-  Serial.print("PA Level: MAX");
+  Serial.print("✅ NRF24 initialized! Device ");
+  Serial.print(DEVICE_ID);
+  Serial.println(" ready");
   Serial.println();
   Serial.println("Setup complete!");
+  Serial.println();
 }
 
 // ============================================
@@ -135,24 +149,20 @@ void loop() {
     digitalWrite(LED_PIN, LOW);
   }
   
-  // Handle buzzer when gas detected
+  // Handle buzzer when gas detected (active buzzer on D0)
   if (gasDetected) {
     if (now - lastBuzzerToggle >= BUZZER_TONE_DURATION) {
       buzzerState = !buzzerState;
-      if (buzzerState) {
-        tone(BUZZER_PIN, BUZZER_FREQUENCY);
-      } else {
-        noTone(BUZZER_PIN);
-      }
+      digitalWrite(BUZZER_PIN, buzzerState ? HIGH : LOW);
       lastBuzzerToggle = now;
     }
   } else {
-    noTone(BUZZER_PIN);
+    digitalWrite(BUZZER_PIN, LOW);
     buzzerState = LOW;
   }
   
   // Send data to server at regular intervals
-  if (now - lastDataSend >= SEND_INTERVAL) {
+  if (now - lastDataSend >= DATA_SEND_INTERVAL) {
     sendDataToServer();
     lastDataSend = now;
   }
@@ -177,15 +187,18 @@ void sendDataToServer() {
   payload.timestamp = millis();
   
   if (radio.write(&payload, sizeof(payload))) {
-    Serial.print("Data sent - Device ");
+    Serial.print("📤 Device ");
     Serial.print(DEVICE_ID);
-    Serial.print(": ");
+    Serial.print(" - Gas: ");
     Serial.print(gasLevel);
-    Serial.println(" ✓");
+    if (gasDetected) {
+      Serial.print("  ⚠️  GAS DETECTED!");
+    }
+    Serial.println();
   } else {
-    Serial.print("Failed to send - Device ");
+    Serial.print("❌ Failed to send - Device ");
     Serial.print(DEVICE_ID);
-    Serial.println(" ✗");
+    Serial.println();
   }
 }
 
@@ -198,30 +211,56 @@ void serialEvent() {
     cmd.trim();
     
     if (cmd == "status") {
-      Serial.print("Device ID: ");
+      Serial.println("\n╔════════════════════════════════╗");
+      Serial.println("║       DEVICE STATUS REPORT       ║");
+      Serial.println("╚════════════════════════════════╝");
+      
+      Serial.print("Device ID:        ");
       Serial.println(DEVICE_ID);
-      Serial.print("NRF24: ");
-      Serial.println(radio.isChipConnected() ? "OK" : "FAILED");
-      Serial.print("Gas Level: ");
+      
+      Serial.print("NRF24 Radio:      ");
+      Serial.print(radio.isChipConnected() ? "✅ Connected" : "❌ Failed");
+      Serial.println();
+      
+      Serial.print("Gas Level:        ");
       Serial.println(gasLevel);
-      Serial.print("Gas Detected: ");
-      Serial.println(gasDetected ? "YES" : "NO");
-      Serial.print("TX Power: MAX");
+      
+      Serial.print("Gas Threshold:    ");
+      Serial.println(GAS_THRESHOLD);
+      
+      Serial.print("Gas Detected:     ");
+      Serial.println(gasDetected ? "⚠️  YES" : "✅ NO");
+      
       Serial.println();
     }
     
-    if (cmd == "test") {
-      Serial.println("Sending test packet...");
+    else if (cmd == "test") {
+      Serial.println("📨 Sending test packet...");
       PayloadData testPayload;
       testPayload.deviceId = DEVICE_ID;
       testPayload.gasLevel = 500;  // High value to trigger alert
       testPayload.timestamp = millis();
       
       if (radio.write(&testPayload, sizeof(testPayload))) {
-        Serial.println("Test packet sent successfully!");
+        Serial.println("✅ Test packet sent successfully!");
       } else {
-        Serial.println("Test packet failed!");
+        Serial.println("❌ Test packet failed!");
       }
+    }
+    
+    else if (cmd == "restart") {
+      Serial.println("🔄 Restarting device...");
+      delay(1000);
+      ESP.restart();
+    }
+    
+    else if (cmd == "help") {
+      Serial.println("\n📖 Available commands:");
+      Serial.println("  status  - Show device status");
+      Serial.println("  test    - Send test packet to server");
+      Serial.println("  restart - Restart device");
+      Serial.println("  help    - Show this message");
+      Serial.println();
     }
   }
 }
