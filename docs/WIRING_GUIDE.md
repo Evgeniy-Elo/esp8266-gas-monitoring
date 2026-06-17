@@ -16,14 +16,14 @@
 
 ```
                   ┌───────┐
-     RST ←──[RST] │       │[TX]──→ D1 (GPIO1, Serial TX)
-      A0 ←──[ADC] │       │[RX]──→ D2 (GPIO3, Serial RX)
-       D0 ←──[D0] │ WEMOS │[D1]──→ D1 (GPIO5, I2C SCL)
-       D3 ←──[D3] │ D1    │[D2]──→ D2 (GPIO4, I2C SDA)
-       D4 ←──[D4] │ Mini  │[D5]──→ D5 (GPIO14, SPI SCK)
-     3V3 ←──[3V3] │       │[D6]──→ D6 (GPIO12, SPI MISO)
-       G ←──[GND] │       │[D7]──→ D7 (GPIO13, SPI MOSI)
-       5V ←──[5V] │       │[D8]──→ D8 (GPIO15, SPI CSN)
+     RST ←──[RST] │       │ [TX]──→ D1 (GPIO1, Serial TX)
+      A0 ←──[ADC] │       │ [RX]──→ D2 (GPIO3, Serial RX)
+       D0 ←──[D0] │ WEMOS │ [D1]──→ D1 (GPIO5, I2C SCL)
+       D3 ←──[D3] │ D1    │ [D2]──→ D2 (GPIO4, I2C SDA)
+       D4 ←──[D4] │ Mini  │ [D5]──→ D5 (GPIO14, SPI SCK)
+     3V3 ←──[3V3] │       │ [D6]──→ D6 (GPIO12, SPI MISO)
+       G ←──[GND] │       │ [D7]──→ D7 (GPIO13, SPI MOSI)
+       5V ←──[5V] │       │ [D8]──→ D8 (GPIO15, SPI CSN)
                   └───────┘
 ```
 
@@ -258,15 +258,15 @@ MQ-2 выдает **0–5V** на аналоговом выходе. Wemos D1 mi
 ```
 MQ-2 Sensor              Делитель              Wemos D1 Mini
 ┌──────────┐                                 ┌─────────┐
-│          │    OUT                          │         │
+│          │    OUT        R1                │         │
 │ A0  ─────┼───────────── 10kΩ ──┬───────────┼── A0    │
 │          │                     │           │         │
 │ 5V  ─────┼──                   │      3.3V │         │
 │          │                    ┌┴┐     max  │         │
-│ GND ─────┼──                 20kΩ          │         │
+│ GND ─────┼──              R2 20kΩ          │         │
 │          │                    └┬┘          │         │
 │          │                     │           │         │
-│          │                   GND┐          │         │
+│          │                    GND          │         │
 └──────────┘                                 └─────────┘
 ```
 

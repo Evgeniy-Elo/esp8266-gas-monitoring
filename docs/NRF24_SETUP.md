@@ -175,7 +175,7 @@ help    - Показать список команд
 ```
 > status
 ╔════════════════════════════════╗
-║     SERVER STATUS REPORT       ║
+║      SERVER STATUS REPORT      ║
 ╚════════════════════════════════╝
 NRF24 Radio:      ✅ Connected
 Connected Clients: 3
@@ -210,22 +210,23 @@ Configuration:
 
 ### Пример вывода клиента (LPG PPM):
 ```
-╔════════════════════════════════╗
-║ Gas Monitor Client LPG (NRF24) ║
-╚════════════════════════════════╝
+╔═══════════════════════════════════════╗
+║ Gas Monitor Client LPG (пропан-бутан) ║
+║              NRF24 Version            ║
+╚═══════════════════════════════════════╝
 
 Device ID: 2
 
 Configuration:
-  Gas Threshold: 1000 PPM
-  LPG_A: 574.25, LPG_B: -2.222
-  RatioMQ2CleanAir: 9.83
+  LPG (пропан-бутан) Threshold: 1000 PPM
   NRF24 Channel: 76
   NRF24 Data Rate: 250 kbps
   NRF24 PA Level: MAX
 
-✅ Calibration complete (10 readings): R0 = 2.45
 ✅ NRF24 initialized! Device 2 ready
+
+Calibrating MQ-2 for LPG (пропан-бутан).......... done!
+  R0 = 2.45
 
 📤 Device 2 - LPG: 450 PPM
 📤 Device 2 - LPG: 320 PPM

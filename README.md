@@ -44,9 +44,9 @@ esp8266-gas-monitoring/
 │   └── server_firmware/
 │       └── server_firmware.ino       # Сервер (WiFi)
 │
-├── WiFi версия (метан PPM):
-│   └── client_firmware_methane/
-│       └── client_firmware_methane.ino # Клиент (WiFi, LPG в PPM)
+├── WiFi версия (LPG PPM):
+│   └── client_firmware_methane/          # папка legacy, прошивка для LPG
+│       └── client_firmware_methane.ino   # Клиент (WiFi, LPG в PPM)
 │
 ├── NRF24 версия:
 │   ├── client_firmware_nrf24/
@@ -54,12 +54,13 @@ esp8266-gas-monitoring/
 │   └── server_firmware_nrf24/
 │       └── server_firmware_nrf24.ino # Сервер (NRF24)
 │
-├── NRF24 версия (метан PPM):
-│   └── client_firmware_methane_nrf24/
+├── NRF24 версия (LPG PPM):
+│   └── client_firmware_methane_nrf24/       # папка legacy, прошивка для LPG
 │       └── client_firmware_methane_nrf24.ino # Клиент (NRF24, LPG в PPM)
 │
 └── docs/
-    └── NRF24_SETUP.md               # Подробная инструкция NRF24
+    ├── NRF24_SETUP.md               # Подробная инструкция NRF24
+    └── WIRING_GUIDE.md              # Полное руководство по подключению
 ```
 
 ---
@@ -151,12 +152,24 @@ lib_deps =
 
 **Примечание:** Коэффициенты получены аппроксимацией логарифмических графиков из даташита MQ-2 (Hanwei). Значения могут отличаться для конкретного экземпляра датчика. Для смены газа достаточно изменить `setA()` / `setB()` в прошивке — калибровка `R0` общая.
 
+### Пины (аппаратное подключение):
+```cpp
+#define MQ2_PIN A0      // Аналоговый вход MQ-2 (через делитель 10k+20k)
+#define LED_PIN D3      // GPIO0 — сигнальный LED клиента
+#define BUZZER_PIN D0   // GPIO16 — активный зуммер (нет PWM/tone)
+#define I2C_SDA D2      // GPIO4 — OLED дисплей (сервер)
+#define I2C_SCL D1      // GPIO5 — OLED дисплей (сервер)
+#define SSD1306_I2C_ADDR 0x3C // Адрес дисплея
+```
+
 ### Таймеры:
 ```cpp
 #define SENSOR_READ_INTERVAL 100     // Чтение датчика каждые 100мс
 #define DATA_SEND_INTERVAL 500       // Отправка данных каждые 500мс
 #define LED_BLINK_INTERVAL 200       // Мигание LED при alert каждые 200мс
 #define BUZZER_TONE_DURATION 100     // Длительность сигнала зуммера (мс)
+#define DISPLAY_UPDATE_INTERVAL 100  // Обновление дисплея (мс)
+#define STATUS_UPDATE_INTERVAL 1000  // Печать статуса в Serial (мс)
 ```
 
 ### NRF24:
@@ -210,7 +223,7 @@ lib_deps =
 - На экране сервера отображаются **PPM LPG**, а не raw ADC
 - Порог срабатывания — `LPG_THRESHOLD` (1000 PPM)
 - Калибровка при старте (10 измерений), ручная — командой `calibrate`
-- Команды Serial: `status`, `test` (шлёт 1500 PPM), `calibrate`, `restart`, `help`
+- Команды Serial: `status`, `calibrate`, `restart`, `scan`, `help`
 
 ---
 
@@ -252,12 +265,12 @@ lib_deps =
 ┌─────────────┬─────────────┐
 │  D1         │  D2         │
 │             │             │
-│  450ppm     │  320ppm     │
+│   450       │   320       │
 │             │             │
 ├─────────────┼─────────────┤
 │  D3         │  D4         │
 │             │             │
-│  680ppm     │  210ppm     │
+│   680       │   210       │
 │             │             │
 └─────────────┴─────────────┘
 ```
@@ -266,16 +279,16 @@ lib_deps =
 ```
 ┌─────────────┬─────────────┐
 │  D1         │█████D2██████│
-│             │█ 1200ppm █  │  ← Мигает инверсия
+│             │█  1200    █ │  ← Мигает инверсия
 ├─────────────┼─────────────┤
 │  D3         │  D4         │
 │             │             │
-│   267       │  212ppm     │
+│   267       │   212       │
 └─────────────┴─────────────┘
 ```
 
 - **D1-D4**: номера устройств
-- **Большие цифры**: текущий уровень газа (raw 0–1023 или PPM)
+- **Большие цифры**: текущий уровень газа (raw 0–1023 или PPM, без суффикса)
 - **--**: устройство отключено
 - **Инверсия**: обнаружен газ (мигание 200мс)
 
@@ -289,7 +302,7 @@ lib_deps =
 ```
 > status
 ╔════════════════════════════════╗
-║       DEVICE STATUS REPORT     ║
+║      DEVICE STATUS REPORT      ║
 ╚════════════════════════════════╝
 Device ID:        1
 WiFi Status:      ✅ Connected
@@ -305,7 +318,7 @@ Gas Detected:     ✅ NO
 ```
 > status
 ╔════════════════════════════════╗
-║       SERVER STATUS REPORT     ║
+║      SERVER STATUS REPORT      ║
 ╚════════════════════════════════╝
 WiFi AP IP: 192.168.4.1
 Connected Clients: 3
@@ -429,7 +442,7 @@ LPG версия укладывается в 0–5000 PPM (реальный ди
 ### Сервер:
 - 🟢 LED соответствующего устройства мигает (200мс период)
 - 📱 На дисплее инверсия фона в соответствующей секции
-- 📊 Статус "ALERTS: N" если есть оповещения
+- 📊 Serial статус: `"X connected, Y alerts"`
 
 ---
 
